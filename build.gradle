@@ -1,9 +1,19 @@
-def android_jar = new File(System.getenv('ANDROID_HOME'), '/platforms/android-17/android.jar')
+apply plugin: 'com.android.library'
 
-apply plugin: 'java'
+android {
+  compileSdkVersion 22
+  buildToolsVersion "22.0.1"
 
-sourceCompatibility = 1.5
-
-dependencies {
-  compile files(android_jar)
+  defaultConfig {
+    minSdkVersion 18
+    targetSdkVersion 22
+    versionCode 1
+    versionName "1.0"
+  }
+  buildTypes {
+    release {
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    }
+  }
 }

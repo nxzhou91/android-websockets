@@ -5,16 +5,16 @@ import android.os.HandlerThread;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
-import org.apache.http.*;
+
+import org.apache.http.Header;
+import org.apache.http.HttpException;
+import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.message.BasicLineParser;
 import org.apache.http.message.BasicNameValuePair;
 
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -24,7 +24,14 @@ import java.net.URI;
 import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
+
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
 
 public class WebSocketClient {
     private static final String TAG = "WebSocketClient";
@@ -44,6 +51,10 @@ public class WebSocketClient {
 
     public static void setTrustManagers(TrustManager[] tm) {
         sTrustManagers = tm;
+    }
+
+    public WebSocketClient(URI uri, Listener listener) {
+        this(uri, listener, new ArrayList<BasicNameValuePair>());
     }
 
     public WebSocketClient(URI uri, Listener listener, List<BasicNameValuePair> extraHeaders) {
@@ -242,7 +253,7 @@ public class WebSocketClient {
                         outputStream.write(frame);
                         outputStream.flush();
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     mListener.onError(e);
                 }
             }

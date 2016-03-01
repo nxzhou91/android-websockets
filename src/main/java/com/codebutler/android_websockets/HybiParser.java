@@ -78,6 +78,13 @@ public class HybiParser {
     private static final int OP_PING         =  9;
     private static final int OP_PONG         = 10;
 
+    private static final int STATE_PARSE_OP_CODE         =  0;
+    private static final int STATE_PARSE_LENGTH          =  1;
+    private static final int STATE_PARSE_EXTENDED_LENGTH =  2;
+    private static final int STATE_PARSE_MASK            =  3;
+    private static final int STATE_PARSE_CONTENT         =  4;
+    private static final int STATE_CLOSED                =  5;
+
     private static final List<Integer> OPCODES = Arrays.asList(
         OP_CONTINUATION,
         OP_TEXT,
@@ -108,25 +115,25 @@ public class HybiParser {
         while (true) {
             if (stream.available() == -1) break;
             switch (mStage) {
-                case 0:
+                case STATE_PARSE_OP_CODE:
                     parseOpcode(stream.readByte());
                     break;
-                case 1:
+                case STATE_PARSE_LENGTH:
                     parseLength(stream.readByte());
                     break;
-                case 2:
+                case STATE_PARSE_EXTENDED_LENGTH:
                     parseExtendedLength(stream.readBytes(mLengthSize));
                     break;
-                case 3:
+                case STATE_PARSE_MASK:
                     mMask = stream.readBytes(4);
-                    mStage = 4;
+                    mStage = STATE_PARSE_CONTENT;
                     break;
-                case 4:
+                case STATE_PARSE_CONTENT:
                     mPayload = stream.readBytes(mLength);
                     emitFrame();
-                    mStage = 0;
                     break;
             }
+            if (mStage == STATE_CLOSED) break;
         }
         mClient.getListener().onDisconnect(0, "EOF");
     }
@@ -153,7 +160,7 @@ public class HybiParser {
             throw new ProtocolError("Expected non-final packet");
         }
 
-        mStage = 1;
+        mStage = STATE_PARSE_LENGTH;
     }
 
     private void parseLength(byte data) {
@@ -161,16 +168,16 @@ public class HybiParser {
         mLength = (data & LENGTH);
 
         if (mLength >= 0 && mLength <= 125) {
-            mStage = mMasked ? 3 : 4;
+            mStage = mMasked ? STATE_PARSE_MASK : STATE_PARSE_CONTENT;
         } else {
             mLengthSize = (mLength == 126) ? 2 : 8;
-            mStage      = 2;
+            mStage      = STATE_PARSE_EXTENDED_LENGTH;
         }
     }
 
     private void parseExtendedLength(byte[] buffer) throws ProtocolError {
         mLength = getInteger(buffer);
-        mStage  = mMasked ? 3 : 4;
+        mStage  = mMasked ? STATE_PARSE_MASK : STATE_PARSE_CONTENT;
     }
 
     public byte[] frame(String data) {
@@ -290,8 +297,8 @@ public class HybiParser {
             int    code   = (payload.length >= 2) ? 256 * payload[0] + payload[1] : 0;
             String reason = (payload.length >  2) ? encode(slice(payload, 2))     : null;
             Log.d(TAG, "Got close op! " + code + " " + reason);
-            mClient.getListener().onDisconnect(code, reason);
-
+            mStage = STATE_CLOSED;
+            return;
         } else if (opcode == OP_PING) {
             if (payload.length > 125) { throw new ProtocolError("Ping payload too large"); }
             Log.d(TAG, "Sending pong!!");
@@ -302,6 +309,7 @@ public class HybiParser {
             // FIXME: Fire callback...
             Log.d(TAG, "Got pong! " + message);
         }
+        mStage = STATE_PARSE_OP_CODE;
     }
 
     private void reset() {
