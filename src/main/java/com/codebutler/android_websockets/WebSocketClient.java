@@ -9,11 +9,9 @@ import android.util.Log;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
-import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.message.BasicLineParser;
-import org.apache.http.message.BasicNameValuePair;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -24,8 +22,7 @@ import java.net.URI;
 import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
@@ -42,7 +39,7 @@ public class WebSocketClient {
     private Thread                   mThread;
     private HandlerThread            mHandlerThread;
     private Handler                  mHandler;
-    private List<BasicNameValuePair> mExtraHeaders;
+    private Map<String, String> mExtraHeaders;
     private HybiParser               mParser;
 
     private final Object mSendLock = new Object();
@@ -53,11 +50,7 @@ public class WebSocketClient {
         sTrustManagers = tm;
     }
 
-    public WebSocketClient(URI uri, Listener listener) {
-        this(uri, listener, new ArrayList<BasicNameValuePair>());
-    }
-
-    public WebSocketClient(URI uri, Listener listener, List<BasicNameValuePair> extraHeaders) {
+    public WebSocketClient(URI uri, Listener listener, Map<String, String> extraHeaders) {
         mURI          = uri;
         mListener = listener;
         mExtraHeaders = extraHeaders;
@@ -105,8 +98,8 @@ public class WebSocketClient {
                     out.print("Sec-WebSocket-Key: " + secret + "\r\n");
                     out.print("Sec-WebSocket-Version: 13\r\n");
                     if (mExtraHeaders != null) {
-                        for (NameValuePair pair : mExtraHeaders) {
-                            out.print(String.format("%s: %s\r\n", pair.getName(), pair.getValue()));
+                        for (String key : mExtraHeaders.keySet()) {
+                            out.print(String.format("%s: %s\r\n", key, mExtraHeaders.get(key)));
                         }
                     }
                     out.print("\r\n");
